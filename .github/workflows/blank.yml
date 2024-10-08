@@ -1,0 +1,126 @@
+#include <iostream>
+#include <winsock2.h>
+
+#pragma comment(lib, "ws2_32.lib")
+
+using namespace std;
+
+void startServer() {
+    WSADATA wsa;
+    SOCKET serverSocket, clientSocket;
+    struct sockaddr_in server, client;
+    int c;
+    char message[1024];
+
+    cout << "Initializing Winsock..." << endl;
+    if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0) {
+        cout << "Failed. Error Code: " << WSAGetLastError() << endl;
+        return;
+    }
+
+    if ((serverSocket = socket(AF_INET, SOCK_STREAM, 0)) == INVALID_SOCKET) {
+        cout << "Could not create socket: " << WSAGetLastError() << endl;
+        return;
+    }
+
+    server.sin_family = AF_INET;
+    server.sin_addr.s_addr = INADDR_ANY;
+    server.sin_port = htons(8888);
+
+    if (bind(serverSocket, (struct sockaddr *)&server, sizeof(server)) == SOCKET_ERROR) {
+        cout << "Bind failed with error code: " << WSAGetLastError() << endl;
+        return;
+    }
+
+    listen(serverSocket, 3);
+
+    cout << "Waiting for incoming connections..." << endl;
+    c = sizeof(struct sockaddr_in);
+    clientSocket = accept(serverSocket, (struct sockaddr *)&client, &c);
+    if (clientSocket == INVALID_SOCKET) {
+        cout << "Accept failed with error code: " << WSAGetLastError() << endl;
+        return;
+    }
+
+    cout << "Connection accepted" << endl;
+
+    while (true) {
+        int recv_size = recv(clientSocket, message, 1024, 0);
+        if (recv_size == SOCKET_ERROR) {
+            cout << "Recv failed with error code: " << WSAGetLastError() << endl;
+            break;
+        }
+        message[recv_size] = '\0';
+        cout << "Client: " << message << endl;
+
+        cout << "You: ";
+        cin.getline(message, 1024);
+        send(clientSocket, message, strlen(message), 0);
+    }
+
+    closesocket(serverSocket);
+    WSACleanup();
+}
+
+void startClient() {
+    WSADATA wsa;
+    SOCKET clientSocket;
+    struct sockaddr_in server;
+    char message[1024];
+
+    cout << "Initializing Winsock..." << endl;
+    if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0) {
+        cout << "Failed. Error Code: " << WSAGetLastError() << endl;
+        return;
+    }
+
+    if ((clientSocket = socket(AF_INET, SOCK_STREAM, 0)) == INVALID_SOCKET) {
+        cout << "Could not create socket: " << WSAGetLastError() << endl;
+        return;
+    }
+
+    server.sin_family = AF_INET;
+    server.sin_addr.s_addr = inet_addr("127.0.0.1");
+    server.sin_port = htons(8888);
+
+    if (connect(clientSocket, (struct sockaddr *)&server, sizeof(server)) < 0) {
+        cout << "Connect failed with error code: " << WSAGetLastError() << endl;
+        return;
+    }
+
+    cout << "Connected to server" << endl;
+
+    while (true) {
+        cout << "You: ";
+        cin.getline(message, 1024);
+        send(clientSocket, message, strlen(message), 0);
+
+        int recv_size = recv(clientSocket, message, 1024, 0);
+        if (recv_size == SOCKET_ERROR) {
+            cout << "Recv failed with error code: " << WSAGetLastError() << endl;
+            break;
+        }
+        message[recv_size] = '\0';
+        cout << "Server: " << message << endl;
+    }
+
+    closesocket(clientSocket);
+    WSACleanup();
+}
+
+int main() {
+    int choice;
+    cout << "1. Start Server\n2. Start Client\nEnter choice: ";
+    cin >> choice;
+    cin.ignore();
+
+    if (choice == 1) {
+        startServer();
+    } else if (choice == 2) {
+        startClient();
+    } else {
+        cout << "Invalid choice" << endl;
+    }
+
+    return 0;
+}
